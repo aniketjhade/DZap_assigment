@@ -14,24 +14,23 @@ function Disperse() {
   const onSubmit = () => {
     clearOutputMessage();
     setErrors([]);
-    const lines = inputText.split(/, |,|=|\n/);
+    const lines = inputText.split("\n"); // Split by new line
     const newErrors = [];
-  
-    const addressAmountMap = {};
-  
+
     lines.forEach((line, index) => {
-      // Split the line by space
-      const parts = line.split(" ");
-  
+      // Remove leading/trailing white spaces and split the line by space, comma, or equals sign
+      const trimmedLine = line.trim();
+      const parts = trimmedLine.split(/[ ,=]+/);
+
       // Check if there are exactly two parts (address and amount)
       if (parts.length !== 2) {
         newErrors.push(`Line ${index + 1} has an invalid number of elements.`);
         return;
       }
-  
+
       const address = parts[0];
       const amount = parts[1];
-  
+
       // Use a regex pattern to validate the address
       const addressPattern = /^0x[0-9a-fA-F]{40}$/;
       if (!address.match(addressPattern)) {
@@ -39,98 +38,121 @@ function Disperse() {
           `Line ${index + 1} has an invalid address: ${address}`
         );
       }
-  
-      // Check if the amount is a valid number
-      if (isNaN(amount)) {
+
+      // Check if the amount is a valid number and not negative
+      if (isNaN(amount) || parseFloat(amount) < 0) {
         newErrors.push(
-          `Line ${index + 1} has an invalid amount: ${amount}`
+          `Line ${index + 1} has an invalid or negative amount: ${amount}`
         );
       }
-  
-      // Combine balances
-      if (!addressAmountMap[address]) {
-        addressAmountMap[address] = parseInt(amount);
-      } else {
-        addressAmountMap[address] += parseInt(amount);
-      }
     });
-  
+
     setErrors(newErrors);
-  
+
     if (newErrors.length === 0) {
       setValidationMessage("Input is valid.");
     } else {
       setValidationMessage("Input contains errors.");
     }
+
+    // Set output message
+    setOutputMessage(
+      `${
+        newErrors.length === 0 ? "Input is valid." : "Input contains errors."
+      }\n${duplicateMessage}`
+    );
+  };
+
+  const sumDuplicateBalances = () => {
+    clearOutputMessage();
+    setErrors([]);
   
-    // Check for duplicates and build the duplicate message
-    const duplicates = {};
+    const lines = inputText.split("\n");
+    const addressAmountMap = {};
   
-    Object.entries(addressAmountMap).forEach(([address, amount], index) => {
-      if (amount > 0) {
-        if (duplicates[address]) {
-          duplicates[address].lines.push(index + 1);
+    lines.forEach((line, index) => {
+      // Remove leading/trailing white spaces and split the line by space, comma, or equals sign
+      const trimmedLine = line.trim();
+      const parts = trimmedLine.split(/[ ,=]+/);
+  
+      if (parts.length !== 2) {
+        setErrors((prevErrors) => [
+          ...prevErrors,
+          `Line ${index + 1} should have exactly two elements (address and amount).`,
+        ]);
+        return;
+      }
+  
+      const address = parts[0];
+      const parsedAmount = parseFloat(parts[1]);
+  
+      if (!isNaN(parsedAmount)) {
+        if (!addressAmountMap[address]) {
+          addressAmountMap[address] = parsedAmount;
         } else {
-          duplicates[address] = {
-            lines: [index + 1],
-            amount: amount,
-          };
+          addressAmountMap[address] += parsedAmount;
         }
       }
     });
   
-    const duplicateLines = [];
-  
-    Object.entries(duplicates).forEach(([address, data]) => {
-      if (data.lines.length > 1) {
-        duplicateLines.push(
-          `Address ${address} encountered duplicate in line: ${data.lines.join(
-            ", "
-          )}`
-        );
+    // Create lines with combined amounts
+    const combinedLines = Object.entries(addressAmountMap).map(
+      ([address, amount]) => {
+        return `${address}=${amount}`;
       }
-    });
-  
-    setDuplicateMessage(duplicateLines.join(" "));
-  
-    // Set output message
-    setOutputMessage(
-      `${newErrors.length === 0 ? "Input is valid." : "Input contains errors."}\n${duplicateMessage}`
     );
-  };
-
-  const keepFirstOne = () => {
-    clearOutputMessage();
-    setErrors([]);
-    const lines = inputText.split("\n");
-    const uniqueLines = [];
-    const seenAddresses = new Set();
-
-    lines.forEach((line) => {
-      const parts = line.split(" ");
-      const address = parts[0];
-
-      if (!seenAddresses.has(address)) {
-        seenAddresses.add(address);
-        uniqueLines.push(line);
-      }
-    });
-
-    setInputText(uniqueLines.join("\n"));
-
+  
+    setInputText(combinedLines.join("\n"));
+  
     // Set output message
-    setOutputMessage("Kept the first occurrence of each address.");
+    setOutputMessage("Combined amounts for the same address while keeping the first occurrence.");
   };
+  
 
   const combineBalances = () => {
     clearOutputMessage();
     setErrors([]);
-    setInputText(combineDuplicateBalances(inputText));
+    const lines = inputText.split("\n");
+    const addressAmountMap = {};
+
+    lines.forEach((line, index) => {
+      // Remove leading/trailing white spaces
+      const trimmedLine = line.trim();
+
+      // Split the line by space, comma, or equals sign to get address and amount
+      const parts = trimmedLine.split(/[ ,=]+/);
+
+      if (parts.length !== 2) {
+        setErrors((prevErrors) => [
+          ...prevErrors,
+          `Line ${index + 1} should have exactly two elements (address and amount).`,
+        ]);
+        return;
+      }
+
+      const address = parts[0];
+      const parsedAmount = parseFloat(parts[1]);
+
+      if (!isNaN(parsedAmount)) {
+        if (!addressAmountMap[address]) {
+          addressAmountMap[address] = [parsedAmount];
+        } else {
+          addressAmountMap[address].push(parsedAmount);
+        }
+      }
+    });
+
+    // Combine balances for each address
+    const combinedLines = Object.entries(addressAmountMap).map(
+      ([address, amounts]) => {
+        return `${address}=${amounts.join(",")}`;
+      }
+    );
+
+    setInputText(combinedLines.join("\n"));
 
     // Set output message
-    setOutputMessage(
-      generateDuplicateMessage(inputText)
-    );
+    setOutputMessage("Combined balances.");
   };
 
   const generateDuplicateMessage = (text) => {
@@ -163,64 +185,64 @@ function Disperse() {
     return duplicateLines.join("\n");
   };
 
-  const sumDuplicateBalances = () => {
+  const keepFirstOne = () => {
     clearOutputMessage();
     setErrors([]);
-    setInputText(sumDuplicateAddressBalances(inputText));
-
+  
+    const lines = inputText.split("\n");
+    const uniqueLines = [];
+    const seenAddresses = new Map(); // Use a Map to track line numbers for each address
+    const duplicateMessageMap = new Map(); // Use a Map to group duplicate addresses and line numbers
+  
+    lines.forEach((line, index) => {
+      // Remove leading/trailing white spaces and split the line by space, comma, or equals sign
+      const trimmedLine = line.trim();
+      const parts = trimmedLine.split(/[ ,=]+/);
+  
+      if (parts.length !== 2) {
+        setErrors((prevErrors) => [
+          ...prevErrors,
+          `Line ${index + 1} should have exactly two elements (address and amount).`,
+        ]);
+        return;
+      }
+  
+      const address = parts[0];
+  
+      if (!seenAddresses.has(address)) {
+        seenAddresses.set(address, index + 1); // Store the line number
+        uniqueLines.push(trimmedLine);
+      } else {
+        if (!duplicateMessageMap.has(address)) {
+          duplicateMessageMap.set(address, [seenAddresses.get(address)]);
+        }
+        duplicateMessageMap.get(address).push(index + 1);
+      }
+    });
+  
+    setInputText(uniqueLines.join("\n"));
+  
+    // Generate the duplicate message by iterating over the duplicateMessageMap
+    const duplicateMessageLines = [];
+    duplicateMessageMap.forEach((lineNumbers, address) => {
+      duplicateMessageLines.push(
+        `Address ${address} encountered duplicate in line: ${lineNumbers.join(", ")}`
+      );
+    });
+  
     // Set output message
-    setOutputMessage("Summed duplicate balances.");
-  };
-
-  const combineDuplicateBalances = (text) => {
-    const lines = text.split("\n");
-    const addressAmountMap = {};
-
-    lines.forEach((line) => {
-      const parts = line.split(" ");
-      const address = parts[0];
-      const amount = parseInt(parts[1]);
-
-      if (!addressAmountMap[address]) {
-        addressAmountMap[address] = [amount];
-      } else {
-        addressAmountMap[address].push(amount);
-      }
-    });
-
-    const combinedLines = Object.entries(addressAmountMap).map(
-      ([address, amounts]) => {
-        return `${address} ${amounts.join(", ")}`;
-      }
+    setOutputMessage(
+      duplicateMessageLines.length > 0
+        ? duplicateMessageLines.join("\n")
+        : "Kept the first occurrence of each address."
     );
-
-    return combinedLines.join("\n");
   };
+  
+  
+  
+  
+  
 
-  const sumDuplicateAddressBalances = (text) => {
-    const lines = text.split("\n");
-    const addressAmountMap = {};
-
-    lines.forEach((line) => {
-      const parts = line.split(" ");
-      const address = parts[0];
-      const amount = parseInt(parts[1]);
-
-      if (!addressAmountMap[address]) {
-        addressAmountMap[address] = amount;
-      } else {
-        addressAmountMap[address] += amount;
-      }
-    });
-
-    const summedLines = Object.entries(addressAmountMap).map(
-      ([address, amount]) => {
-        return `${address} ${amount}`;
-      }
-    );
-
-    return summedLines.join("\n");
-  };
 
   return (
     <div className="container mx-auto mt-8 flex flex-col items-center">
