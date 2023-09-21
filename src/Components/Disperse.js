@@ -34,9 +34,7 @@ function Disperse() {
       // Use a regex pattern to validate the address
       const addressPattern = /^0x[0-9a-fA-F]{40}$/;
       if (!address.match(addressPattern)) {
-        newErrors.push(
-          `Line ${index + 1} has an invalid address: ${address}`
-        );
+        newErrors.push(`Line ${index + 1} has an invalid address: ${address}`);
       }
 
       // Check if the amount is a valid number and not negative
@@ -66,26 +64,28 @@ function Disperse() {
   const sumDuplicateBalances = () => {
     clearOutputMessage();
     setErrors([]);
-  
+
     const lines = inputText.split("\n");
     const addressAmountMap = {};
-  
+
     lines.forEach((line, index) => {
       // Remove leading/trailing white spaces and split the line by space, comma, or equals sign
       const trimmedLine = line.trim();
       const parts = trimmedLine.split(/[ ,=]+/);
-  
+
       if (parts.length !== 2) {
         setErrors((prevErrors) => [
           ...prevErrors,
-          `Line ${index + 1} should have exactly two elements (address and amount).`,
+          `Line ${
+            index + 1
+          } should have exactly two elements (address and amount).`,
         ]);
         return;
       }
-  
+
       const address = parts[0];
       const parsedAmount = parseFloat(parts[1]);
-  
+
       if (!isNaN(parsedAmount)) {
         if (!addressAmountMap[address]) {
           addressAmountMap[address] = parsedAmount;
@@ -94,20 +94,21 @@ function Disperse() {
         }
       }
     });
-  
+
     // Create lines with combined amounts
     const combinedLines = Object.entries(addressAmountMap).map(
       ([address, amount]) => {
         return `${address}=${amount}`;
       }
     );
-  
+
     setInputText(combinedLines.join("\n"));
-  
+
     // Set output message
-    setOutputMessage("Combined amounts for the same address while keeping the first occurrence.");
+    setOutputMessage(
+      "Combined amounts for the same address while keeping the first occurrence."
+    );
   };
-  
 
   const combineBalances = () => {
     clearOutputMessage();
@@ -125,7 +126,9 @@ function Disperse() {
       if (parts.length !== 2) {
         setErrors((prevErrors) => [
           ...prevErrors,
-          `Line ${index + 1} should have exactly two elements (address and amount).`,
+          `Line ${
+            index + 1
+          } should have exactly two elements (address and amount).`,
         ]);
         return;
       }
@@ -188,27 +191,29 @@ function Disperse() {
   const keepFirstOne = () => {
     clearOutputMessage();
     setErrors([]);
-  
+
     const lines = inputText.split("\n");
     const uniqueLines = [];
     const seenAddresses = new Map(); // Use a Map to track line numbers for each address
     const duplicateMessageMap = new Map(); // Use a Map to group duplicate addresses and line numbers
-  
+
     lines.forEach((line, index) => {
       // Remove leading/trailing white spaces and split the line by space, comma, or equals sign
       const trimmedLine = line.trim();
       const parts = trimmedLine.split(/[ ,=]+/);
-  
+
       if (parts.length !== 2) {
         setErrors((prevErrors) => [
           ...prevErrors,
-          `Line ${index + 1} should have exactly two elements (address and amount).`,
+          `Line ${
+            index + 1
+          } should have exactly two elements (address and amount).`,
         ]);
         return;
       }
-  
+
       const address = parts[0];
-  
+
       if (!seenAddresses.has(address)) {
         seenAddresses.set(address, index + 1); // Store the line number
         uniqueLines.push(trimmedLine);
@@ -219,17 +224,19 @@ function Disperse() {
         duplicateMessageMap.get(address).push(index + 1);
       }
     });
-  
+
     setInputText(uniqueLines.join("\n"));
-  
+
     // Generate the duplicate message by iterating over the duplicateMessageMap
     const duplicateMessageLines = [];
     duplicateMessageMap.forEach((lineNumbers, address) => {
       duplicateMessageLines.push(
-        `Address ${address} encountered duplicate in line: ${lineNumbers.join(", ")}`
+        `Address ${address} encountered duplicate in line: ${lineNumbers.join(
+          ", "
+        )}`
       );
     });
-  
+
     // Set output message
     setOutputMessage(
       duplicateMessageLines.length > 0
@@ -237,12 +244,6 @@ function Disperse() {
         : "Kept the first occurrence of each address."
     );
   };
-  
-  
-  
-  
-  
-
 
   return (
     <div className="container mx-auto mt-8 flex flex-col items-center">
